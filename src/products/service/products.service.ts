@@ -47,6 +47,7 @@ export class ProductsService {
                 offerProducts.push(offerProduct);
             }
         }
+        // TODO: Enviar petición al API del backend que recibe el resultado de las ofertas
         return offerProducts;
     }
 

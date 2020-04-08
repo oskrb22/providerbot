@@ -1,24 +1,25 @@
-import { Controller, Get, Param, ParseIntPipe, Post } from '@nestjs/common';
+import { Controller, Get, Param, ParseIntPipe, Logger } from '@nestjs/common';
 import { ProductDto } from './dto/product.dto';
 import { ProductsService } from './service/products.service';
-const xmlbuilder = require('xmlbuilder'); 
-
+import { MessagePattern, RmqContext, Ctx, Payload } from '@nestjs/microservices';
+const xmlbuilder = require('xmlbuilder');
 
 @Controller('products')
 export class ProductsController {
+    private readonly logger = new Logger(ProductsService.name);
+
     constructor(private productsService: ProductsService) {
     }
 
     @Get('/')
     async getProducts(): Promise<any> {        
-        return this.productsService.getOfferProducts([1,2,3,4]);
         const products = await this.productsService.getProducts();
-        if(process.env.format === 'xml') {
+        if (process.env.format === 'xml') {
             let xml = xmlbuilder.create('Products');
             for (const product of products) {
                 xml.ele('Product', product)
-            }                    
-            return xml.end({ pretty: true });
+            }
+            return xml.end({pretty: true});
         }
         else {
             return products
@@ -26,8 +27,25 @@ export class ProductsController {
     }
 
     @Get('/byCatalog:catalogId')
-    getProductsByCategory(@Param('catalogId', ParseIntPipe) catalogId : number): Promise<Array<ProductDto>> {
+    getProductsByCategory(@Param('catalogId', ParseIntPipe) catalogId: number): Promise<Array<ProductDto>> {
         return this.productsService.getProductsByCatalog(catalogId);
-    }    
+    }
+
+    @MessagePattern('rabbit-mq-producer')
+    public async execute(
+        @Payload() data: any,
+        @Ctx() context: RmqContext
+    ) {
+        try {
+            const channel = context.getChannelRef();
+            const originalMessage = context.getMessage();            
+            const offer = JSON.parse(data);
+            this.productsService.getOfferProducts(offer.products);
+            channel.ack(originalMessage);
+        } catch (error) {
+            this.logger.error(error.message);
+            
+        }
+    }
 
 }
