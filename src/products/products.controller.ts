@@ -33,15 +33,11 @@ export class ProductsController {
 
     @MessagePattern('rabbit-mq-producer')
     public async execute(
-        @Payload() data: any,
-        @Ctx() context: RmqContext
+        @Payload() data: any        
     ) {
-        try {
-            const channel = context.getChannelRef();
-            const originalMessage = context.getMessage();            
-            const offer = JSON.parse(data);
-            this.productsService.getOfferProducts(offer.products);
-            channel.ack(originalMessage);
+        try {                        
+            const offer = data;
+            this.productsService.getOfferProducts(offer.products);                        
         } catch (error) {
             this.logger.error(error.message);
             
